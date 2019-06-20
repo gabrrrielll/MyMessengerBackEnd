@@ -18,11 +18,14 @@ var UserSchema = new Schema( {
 	firstname: { type: String },
 	lastname: { type: String },
 	mail_confirm: { type: Boolean },
-	password: { type: String, required: true },
+	password: { type: String, required: true , select: false},
 	tel: { type: String},
 	photo: { type: String },
 	friends: { type: Array  },
-	last_activity: { type: String }	
+	friends_requests: { type: Array  },
+	requests_sent: { type: Array },
+	last_activity: { type: Number},
+	message_fragment: { type: String}
 } )
 
 //Se adauga schema sub forma de "Colectie" in baza de date
