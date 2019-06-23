@@ -65,6 +65,7 @@ router.use("/deniedfriendrequest", middleware);
 router.use("/acceptfriendrequest", middleware);
 router.use("/removefriend", middleware);
 router.use("/addMessage", middleware);
+router.use("/changeprofile", middleware);
 
 router.get("/confirm/:token" , CONTROLLER.confirmToken);
 router.get("/users" , CONTROLLER.users);
@@ -77,6 +78,7 @@ router.post("/deniedfriendrequest", CONTROLLER.deniedFriendRequest);
 router.post("/acceptfriendrequest", CONTROLLER.acceptFriendRequest);
 router.post("/removefriend", CONTROLLER.removeFriend);
 router.post("/addMessage", CONTROLLER.addMessage);
+router.post("/changeprofile", CONTROLLER.changeProfile);
 
 router.post("/checktoken", CONTROLLER.checkToken);
 

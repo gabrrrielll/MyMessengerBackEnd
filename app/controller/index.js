@@ -166,7 +166,7 @@ const users = (req, res) => {
   
             User.find( {  
                     //  "email": { $nin:  emailUser  }
-                } )
+                } ) 
                 .then( users => {
                             if( users ){
                                 User.findOne( {  
@@ -693,6 +693,32 @@ const setConversationSeen = (req, res) => {
     });
 };
 
+const changeProfile = (req, res) => {
+  emailUser = req.email;
+  if ( !emailUser ) return res.sendStatus(500);
+ 
+  User.findOne({ email: emailUser , password: req.body.original_pass })
+              .then(user => {
+                  user.firstname = req.body.firstname;
+                  user.lastname =  req.body.lastname;
+                  if (req.body.new_pass){
+                    user.password = req.body.new_pass
+                  }
+                  user.tel = req.body.tel;
+                  user.photo = req.body.photo;
+                  console.log("ccccccccccccc", req.body)
+                  user.save()
+                  res.send({ status: 200, inform: "Update succesfully!" });
+            })
+            .catch( err => {
+                console.log( "Eroare la interogarea bazei de date" )
+                console.log( err );
+                res.sendStatus( 500 );
+            });
+
+ 
+};
+
 const setConvSeen = (myEmail, hisEmail) => {
 //this function runs only from back so don't need token verification
   
@@ -750,6 +776,7 @@ module.exports = {
   createConversation,
   setConversationSeen,
   addMessage,
-  setLastActivity
+  setLastActivity,
+  changeProfile
   
 };
