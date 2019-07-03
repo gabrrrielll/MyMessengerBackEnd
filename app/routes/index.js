@@ -14,13 +14,14 @@ router.get('/healthcheck', (req, res) => {
 })
 
 
-const middleware = (req, res, next) => {
+const middleware = (req, res, next) => { 
 	if  (req.headers[ 'token' ] ) {
         var token = req.headers[ 'token' ];
     } else if ( req.params.token ) {
         var token =  req.params.token;
     } else if ( req.body.token) {
         var token = req.body.token;
+   
     } else {
         res.status( 403 );
         res.send( { message: "Token empty", authorized: false } );
@@ -31,11 +32,12 @@ const middleware = (req, res, next) => {
                  if ( error ) {
                         res.status( 403 );
                          res.send( { message: "Invalid token", authorized: false } );
-                         emailUser = undefined;
-                          return emailUser ;
+                         myEmail = undefined;
+                          return myEmail ;
                     } else {
 						//res.send( { message: "Valid token", authorized: true } );
                         req.email = payload.email;
+                        req.token = token
                          //toate accesarile pentru backend trec pe aici, deci putem introduce aici functia de a update Last Activity
                          User.updateOne({ email: payload.email }, { $set: { last_activity: Date.now().toString() } })
                                 .then(data => {
@@ -48,17 +50,18 @@ const middleware = (req, res, next) => {
                                 .catch(err => {
                                     console.log("Error in DB", err);
                                 });
-						next();
+                        next( );
+                      
                     }
                 } 
             )
 }
 
 router.use("/confirm/:token", middleware);
-router.use("/users", middleware);
+router.use("/stopdata", middleware);
 router.use("/conversation", middleware);
 router.use("/convFragment", middleware);
-router.use("/setconversationseen", middleware);
+//router.use("/setconversationseen", middleware);
 router.use("/sendfriendrequest", middleware);
 router.use("/revokefriendrequest", middleware);
 router.use("/deniedfriendrequest", middleware);
@@ -68,10 +71,11 @@ router.use("/addMessage", middleware);
 router.use("/changeprofile", middleware);
 
 router.get("/confirm/:token" , CONTROLLER.confirmToken);
-router.get("/users" , CONTROLLER.users);
+//router.get("/users" , CONTROLLER.users);
+router.post("/stopdata" , CONTROLLER.stopData);
 router.get("/conversation", CONTROLLER.conversation);
 router.get("/convfragment", CONTROLLER.convFragment);
-router.get("/setconversationseen", CONTROLLER.setConversationSeen);
+//router.get("/setconversationseen", CONTROLLER.setConversationSeen);
 router.post("/sendfriendrequest", CONTROLLER.sendFriendRequest);
 router.post("/revokefriendrequest", CONTROLLER.revokeFriendRequest);
 router.post("/deniedfriendrequest", CONTROLLER.deniedFriendRequest);

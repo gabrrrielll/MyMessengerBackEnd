@@ -6,6 +6,211 @@ const CONFIG = require("../config");
 
 const nodemailer = require("nodemailer");
 
+
+//******************************* 
+const express = require("express");
+const http = require("http");
+const socketIo = require("socket.io");
+/* const axios = require("axios");
+const port = process.env.PORT || 4001; */
+//const index = require("./routes/index");
+const app = express();
+//app.use(index);
+const server = http.createServer(app);
+const io = socketIo(server);
+
+var myEmail;
+var token;
+var stop = false;
+var interval;
+var socket;
+
+const checkToken = (req, res ) => {
+ 
+  if (req.headers["token"]) {
+    var token = req.headers["token"];
+  } else if (req.params.token) {
+    var token = req.params.token;
+  } else if (req.body.token) {
+    var token = req.body.token;
+  } else if ( req.body.stop) {
+    var token = req.body.token;
+    console.log(" inform:--Token empty", req.body.stop , token)
+    res.status( 403 );
+    res.send( { message: "Token empty", authorized: false } );
+    return
+  } else {
+    
+    res.status(403);
+    res.send({ inform: "Token empty", authorized: false });
+    return;
+  }
+  
+  JWT.verify(token, CONFIG.JWT_SECRET_KEY, (error, payload) => {
+    if (error) {
+      res.status(403);
+      res.send({ inform: "Invalid token", authorized: false });
+      myEmail = undefined;
+      return myEmail;
+    } else {
+      
+      res.send( { inform: "Valid token", authorized: true, myEmail: payload.email } );
+      myEmail = payload.email;
+      setLastActivity(myEmail);
+      convFragment( myEmail  ) 
+      loadData( myEmail  )
+     
+     // interval = setInterval(() => loadData( myEmail, token ), 3000);
+     
+   
+      return
+    }
+  });
+};
+const loadData=( myEmail )=>{
+  
+  //console.log("---------stop load data!", token)
+ // console.log("test--stopl", stop)
+  if( myEmail  ){
+    //setInterval(   (
+    User.findOne( {  
+      email:  myEmail 
+        } )
+        .then( me => {
+                    if( me ){
+                     // setInterval( () =>  
+                           // io.emit("meAPI" + token, me)
+                           // , 10000  );
+                            console.log("ok, find me")
+
+                            User.find( { } ) 
+                              .then( users => {
+                                    if( users ){
+        
+                                            io.emit("usersAPI" + myEmail, users);
+                                            console.log("ok, find users")
+                                    } 
+                                    
+                                })
+                            
+                     }
+         })
+  }
+   // ) , 1000  );
+}
+
+app.get("/", (req, res) => {
+       res.send({ response: "I am alive" }).status(200);
+});
+
+  io.on("connection", socket => {
+          console.log("New client connected", socket.id), 
+              //setInterval( () =>  
+             // usersLive()
+              // , 10000  );
+         
+            socket.on("disconnect", () => console.log("Client disconnected"));
+           
+         
+  });   
+
+
+  
+
+
+/* const usersLive=()=>{
+  User.find( { } ) 
+      .then( users => {
+        if( users ){
+                io.emit("usersAPI", users);
+                console.log("ok, find users")
+                User.findOne( {  
+                    email:  myEmail 
+                } )
+                .then( me => {
+                            if( me ){
+                              // res.send( { users, me} )
+                                io.emit("meAPI", me);
+                                console.log("ok, find me")
+                            } else{
+                                console.log("no me")
+
+                            }
+                    
+                })
+                .catch( err => {
+                            console.log( err );
+                          
+                })
+
+      } 
+
+
+      
+        
+          
+      })
+      .catch( err => {
+              console.log( "Error to DB in live Users" );
+                
+      })
+
+}
+  */
+
+const liveConversation = (myEmail, hisEmail ) =>{   
+ /*  console.log( "tokenul este:" , token);
+    console.log("myEmail->", myEmail);
+    console.log("hisEmail->", hisEmail); */
+            Conversation.findOne({
+              $or: [
+                        { "participants.1.email": myEmail, "participants.0.email": hisEmail },
+                        { "participants.0.email": myEmail, "participants.1.email": hisEmail }
+                    ]
+                }) 
+                .then(conv => {
+                      if(conv !== null){
+                        io.emit("conversationAPI"+myEmail, conv);
+                        io.emit("conversationAPI"+hisEmail, conv);
+                      } else{
+                        var conv = [];
+                        io.emit("conversationAPI"+myEmail, conv);
+                        io.emit("conversationAPI"+hisEmail, conv);
+                      }
+              
+});
+}
+
+
+ server.listen(4001, function(){
+  console.log('listening on *:4001');
+});  
+
+const stopData = ( req, res ) =>{
+ 
+  
+  //myEmail = req.email;
+ // if ( !myEmail ) return res.sendStatus(500);
+  //socket.on("disconnect", () => console.log("Client disconnected"));
+  if(req && req.body.stop){
+    clearInterval(interval);
+    //socket.on("disconnect", () => console.log("Client disconnected"));
+    res.status(403 );
+    res.send( { inform: "Stop load data", authorized: false } );
+    console.log("Client OFF!!!!!!!!!!")
+    return token=null;
+   
+  } else {
+    console.log("Client ONN!!!!!")
+  // return stop= false;
+  }
+ 
+
+}
+//******************************** 
+
+
+
 const register = (req, res) => {
   if (req.body && req.body.username && req.body.password && req.body.email) {
     var newUser = new User({
@@ -88,11 +293,11 @@ const register = (req, res) => {
 
 const confirmToken = (req, res) => {
 /*   checkToken(req, res);
-  if (!emailUser) return; */
-  emailUser = req.email;
-  if ( !emailUser ) return res.sendStatus(500);
+  if (!myEmail) return; */
+  myEmail = req.email;
+  if ( !myEmail ) return res.sendStatus(500);
 
-  User.updateOne({ email: emailUser }, { $set: { mail_confirm: true } })
+  User.updateOne({ email: myEmail }, { $set: { mail_confirm: true } })
     .then(data => {
       res.send(
         "Your account was activated! You must now login <a href ='http://localhost:3000/' ><b>here</b></a>"
@@ -130,47 +335,25 @@ const login = (req, res) => {
     res.status(403).json({ inform: "Please provide all data!" });
   }
 };
-const checkToken = (req, res) => {
-  if (req.headers["token"]) {
-    var token = req.headers["token"];
-  } else if (req.params.token) {
-    var token = req.params.token;
-  } else if (req.body.token) {
-    var token = req.body.token;
-  } else {
-    res.status(403);
-    res.send({ inform: "Token empty", authorized: false });
-    return;
-  }
-  // console.log( "tokenul este:" , token)
-  JWT.verify(token, CONFIG.JWT_SECRET_KEY, (error, payload) => {
-    if (error) {
-      res.status(403);
-      res.send({ inform: "Invalid token", authorized: false });
-      emailUser = undefined;
-      return emailUser;
-    } else {
-      res.send( { inform: "Valid token", authorized: true, emailUser: payload.email } );
-      emailUser = payload.email;
-      setLastActivity(emailUser);
-      return emailUser;
-    }
-  });
-};
 
+/* const users2 = (req, res) => {
+  console.log("test users2")
+  res.send({status: 200, message: "oe5g4gk"})
+}
 const users = (req, res) => {
-  /* checkToken(req, res);
-  if (!emailUser) return; */
-  emailUser = req.email;
-  if ( !emailUser ) return res.sendStatus(500);
-  
+  // checkToken(req, res);
+ // if (!myEmail) return; 
+  myEmail = req.email;
+ 
+  if ( !myEmail ) return res.sendStatus(500);
+  //usersLive(myEmail);
             User.find( {  
-                    //  "email": { $nin:  emailUser  }
+                    //  "email": { $nin:  myEmail  }
                 } ) 
                 .then( users => {
                             if( users ){
                                 User.findOne( {  
-                                    email: emailUser 
+                                    email: myEmail 
                                 } )
                                 .then( me => {
                                             if( me ){
@@ -199,14 +382,14 @@ const users = (req, res) => {
                 })
 
 
-}
+} */
 
 const sendFriendRequest = (req, res) => {
-  emailUser = req.email;
-  if ( !emailUser ) return res.sendStatus(500);
- // console.log(emailUser);
+  myEmail = req.email;
+  if ( !myEmail ) return res.sendStatus(500);
+ // console.log(myEmail);
   //verificam in lista noastra  daca exista o cerere trimisa deja
-  User.findOne({ email: emailUser })
+  User.findOne({ email: myEmail })
         .then(sent => {
                     if (
                     sent &&
@@ -223,15 +406,16 @@ const sendFriendRequest = (req, res) => {
                         .then( sent => {
                                     if (
                                     sent &&
-                                    ( sent.friends.some( x => x === emailUser ) ||
-                                        sent.friends_requests.some( x => x === emailUser ) ||
-                                        sent.requests_sent.some( x => x === emailUser ) )
+                                    ( sent.friends.some( x => x === myEmail ) ||
+                                        sent.friends_requests.some( x => x === myEmail ) ||
+                                        sent.requests_sent.some( x => x === myEmail ) )
                                     ) {
                                     res.status( 409 ).json( { inform: "Already friend or friend request" } );
                                     } else {
-                                        sent.friends_requests.push( emailUser );
+                                        sent.friends_requests.push( myEmail );
                                         sent.save();
-                
+                                        loadData(myEmail);
+                                        loadData(req.body.email_target);
                                         res.status( 200 ).json( { inform: "success" } )
                                     }
                             })
@@ -252,11 +436,11 @@ const sendFriendRequest = (req, res) => {
 };
 
 const revokeFriendRequest = (req, res) => {
-    emailUser = req.email;
-    if ( !emailUser ) return res.sendStatus(500);
+    myEmail = req.email;
+    if ( !myEmail ) return res.sendStatus(500);
    
     //verificam in lista noastra  daca exista o cerere trimisa deja
-    User.findOne({ email: emailUser })
+    User.findOne({ email: myEmail })
              .then(sent => {
                       if (
                             sent  &&
@@ -271,12 +455,14 @@ const revokeFriendRequest = (req, res) => {
                           .then( sent => {
                                       if (
                                       sent  &&
-                                         ! sent.friends_requests.some( x => x === emailUser )
+                                         ! sent.friends_requests.some( x => x === myEmail )
                                       ) {  
                                       res.status( 409 ).json( { inform: "Already friend or friend request" } );
                                       } else {
-                                        sent.friends_requests= sent.friends_requests.filter( el => el!== emailUser );
+                                        sent.friends_requests= sent.friends_requests.filter( el => el!== myEmail );
                                           sent.save();
+                                          loadData(myEmail);
+                                          loadData(req.body.email_target);
              
                                           res.status( 200 ).json( { inform: "success" } )
                                       }
@@ -298,11 +484,11 @@ const revokeFriendRequest = (req, res) => {
   };
 
 const deniedFriendRequest = (req, res) => {
-    emailUser = req.email;
-    if ( !emailUser ) return res.sendStatus(500);
-   // console.log(emailUser);
+    myEmail = req.email;
+    if ( !myEmail ) return res.sendStatus(500);
+   // console.log(myEmail);
     //verificam in lista noastra  daca exista o cerere trimisa deja
-    User.findOne({ email: emailUser })
+    User.findOne({ email: myEmail })
              .then(sent => {
                       if (
                             sent  &&
@@ -317,13 +503,14 @@ const deniedFriendRequest = (req, res) => {
                           .then( sent => {
                                       if (
                                       sent  &&
-                                         ! sent.requests_sent.some( x => x === emailUser )
+                                         ! sent.requests_sent.some( x => x === myEmail )
                                       ) {  
                                       res.status( 409 ).json( { inform: "Already friend or friend request" } );
                                       } else {
-                                        sent.requests_sent= sent.requests_sent.filter( el => el!== emailUser );
+                                        sent.requests_sent= sent.requests_sent.filter( el => el!== myEmail );
                                           sent.save();
-             
+                                          loadData(myEmail);
+                                          loadData(req.body.email_target);
                                           res.status( 200 ).json( { inform: "success" } )
                                       }
                               })
@@ -344,11 +531,11 @@ const deniedFriendRequest = (req, res) => {
   };
 
 const acceptFriendRequest = (req, res) => {
-    emailUser = req.email;
-    if ( !emailUser ) return res.sendStatus(500);
-   // console.log(emailUser);
+    myEmail = req.email;
+    if ( !myEmail ) return res.sendStatus(500);
+   // console.log(myEmail);
     //verificam in lista noastra  daca exista o cerere trimisa deja
-    User.findOne({ email: emailUser })
+    User.findOne({ email: myEmail })
              .then(sent => {
                       if (
                             sent  &&
@@ -364,16 +551,18 @@ const acceptFriendRequest = (req, res) => {
                           .then( sent => {
                                       if (
                                       sent  &&
-                                         ! sent.requests_sent.some( x => x === emailUser )
+                                         ! sent.requests_sent.some( x => x === myEmail )
                                       ) {  
                                       res.status( 409 ).json( { inform: "Already friend or friend request" } );
                                       } else {
-                                        sent.requests_sent= sent.requests_sent.filter( el => el!== emailUser );
-                                        sent.friends.push( emailUser );
+                                        sent.requests_sent= sent.requests_sent.filter( el => el!== myEmail );
+                                        sent.friends.push( myEmail );
                                         sent.save();
+                                        loadData(myEmail);
+                                        loadData(req.body.email_target);
                                         //creaza conversatia cu ocazia acceptului
                                         var salut = " Say hello to your new friend! 👋 ";
-                                        createConversation( emailUser , req.body.email_target,  salut );
+                                        createConversation( myEmail , req.body.email_target,  salut );
              
                                           res.status( 200 ).json( { inform: "success" } )
                                       }
@@ -394,11 +583,11 @@ const acceptFriendRequest = (req, res) => {
 };
 
 const removeFriend = (req, res) => {
-    emailUser = req.email;
-    if ( !emailUser ) return res.sendStatus(500);
-   // console.log(emailUser);
+    myEmail = req.email;
+    if ( !myEmail ) return res.sendStatus(500);
+   // console.log(myEmail);
     //verificam in lista noastra  daca exista o cerere trimisa deja
-    User.findOne({ email: emailUser })
+    User.findOne({ email: myEmail })
              .then(me => {
                       if (
                             me  &&
@@ -413,13 +602,14 @@ const removeFriend = (req, res) => {
                           .then( him => {
                                       if (
                                         him  &&
-                                        !him.friends.some( x => x === emailUser )
+                                        !him.friends.some( x => x === myEmail )
                                       ) {  
                                       res.status( 409 ).json( { inform: "Already friend or friend request" } );
                                       } else {
-                                             him.friends = him.friends.filter( el => el !== emailUser );
+                                             him.friends = him.friends.filter( el => el !== myEmail );
                                              him.save();
-             
+                                             loadData(myEmail);
+                                             loadData(req.body.email_target);
                                           res.status( 200 ).json( { inform: "success" } )
                                       }
                               })
@@ -438,7 +628,7 @@ const removeFriend = (req, res) => {
 };
 
 const createConversation = (myEmail, hisEmail, message) => {
-  setLastActivity( emailUser );
+  setLastActivity( myEmail );
   Conversation.findOne({
     $or: [
       { "participants.1.email": myEmail, "participants.0.email": hisEmail },
@@ -488,9 +678,9 @@ const createConversation = (myEmail, hisEmail, message) => {
 };
 
 const addMessage = (req, res) => {
-    emailUser = req.email;
-    if ( !emailUser ) return res.sendStatus(500);
-  var myEmail = emailUser;
+    myEmail = req.email;
+    if ( !myEmail ) return res.sendStatus(500);
+
   var hisEmail = req.body.hisemail;
   var message = req.body.message;
   //console.log( "xxxxxxxxxxxxxx" , hisEmail, message )
@@ -531,15 +721,13 @@ const addMessage = (req, res) => {
             if (data == null) {
               return res.sendStatus(401);
             }
-           /*  User.updateOne({ email: hisEmail }, { $set: { message_fragment: message } })
-            .then(data => {
-              if (data == null) {
-                console.log("Empty data", data);
-                
-              } */
+          
               setConvSeen (myEmail, hisEmail);
+              liveConversation(myEmail, hisEmail);
+              convFragment( myEmail)
+              convFragment( hisEmail)
               res.send({ status: 200, mesaj: "Update succesfully!" });
-              console.log("Update message: ", data);
+              console.log("Update message: ", token);
          /*    })
             .catch(err => {
               console.log("Error in DB", err);
@@ -564,13 +752,16 @@ const addMessage = (req, res) => {
 
 const conversation = (req, res) => {
 
-  emailUser = req.email;
-  if ( !emailUser ) return res.sendStatus(500);
-  var myEmail = emailUser;
+  myEmail = req.email;
+  token = req.token;
+  if ( !myEmail ) return res.sendStatus(500);
+  
   var hisEmail = req.headers["hisemail"];
- // console.log("req----------", req)
+ // console.log("********conversation-io--->")
 
-  Conversation.findOne(
+  liveConversation(myEmail, hisEmail );
+  //interval2 = setInterval(() => liveConversation(myEmail, hisEmail, token), 1000);
+   Conversation.findOne(
     // ok varianta initiala
     //{ $or: [ { participants: [ myEmail ,  hisEmail ] } , { participants: [ hisEmail , myEmail ] } ] }
     // ok varianta initiala---  { participants: { $all: [ myEmail  , hisEmail ] } }
@@ -583,61 +774,52 @@ const conversation = (req, res) => {
     }
   )
     .sort({ time: -1 })
+ 
     .then((data, participants) => {
       if (data == null) {
         //console.log( "null->data: ", data)
         return res.send({ status: 200, data, mesages: "No conversation!" });
       }
       setConvSeen (myEmail, hisEmail);
-      res.send({ status: 200, data, participants, mesages: "OK!" });
+      
+      res.send({ status: 200, data, participants, mesages: "OK!" })
+         
+      
     })
+    
     .catch(err => {
       console.log("Error in DB");
       res.sendStatus(500);
-    });
+    }); 
 };
 
-const convFragment = (req, res) => {
-
-  emailUser = req.email;
-  if ( !emailUser ) return res.sendStatus(500);
-  var myEmail = emailUser;
-  var hisEmail =  req.headers["hisemail"];
-
-
-  Conversation.findOne(
-  {  $or: [
-      { "participants.0.email": hisEmail , "participants.1.email": myEmail },
-      { "participants.0.email": myEmail, "participants.1.email": hisEmail }
-    ]}
+const convFragment = ( myEmail ) => {
+  console.log( "convFragment->data: ")
+ /*  myEmail = req.email;
+  if ( !myEmail ) return res.sendStatus(500);
+  
+  */ 
+  Conversation.find(
+  {  participants:   { $elemMatch: {email: myEmail} } }
+   
   )
   //  .sort({ time: -1 })
-    .then((data, participants) => {
-               if (data == null) {
-                console.log( "null->data: ", data)
-                //return res.send({ status: 200, data, mesages: "No conversation!" });
-              }
-              var timeRef = data.participants
-              .find( part => part.email === myEmail ).seen;
-               var x=  data.messages
-             // .filter( el => el.email === hisEmail )
-            // .filter( mes =>timeRef <= mes.time  );
-            
-               if( x.length >0 ){
-                var fragment = x[ x.length -1 ].text;
-                var mesTime =x[ x.length -1 ].time; 
-              } else {
-                fragment = x[ 0 ].text;
-                var mesTime =x[ 0 ].time;
-              }  
-              if( mesTime < timeRef ){
-                wasSeen = true;
-              } else {
-                wasSeen = false;
-              }
-              console.log("test-",  timeRef)
-                res.send({ status: 200, wasSeen, fragment, inform: "OK!" });
+    .then((data) => {
+                if (data !== null) {
+                       // console.log( "null->data: ", data)
+                       // return res.send({ status: 200, data, mesages: "No conversation!" });
+                }
+                 var x =[] ;
+                 data.map( mes =>  {
+                 return  x.push( { 
+                  message: mes.messages[  mes.messages.length - 1 ],
+                  seenTime: mes.participants.find( part => part.email === myEmail ).seen,
+                  userEmail: mes.participants.find( part => part.email !== myEmail ).email
+                 })
                 
+              })
+              io.emit( "fragmentAPI"+myEmail, x)
+             
     })
     .catch(err => {
       console.log("Error in DB xx");
@@ -645,10 +827,10 @@ const convFragment = (req, res) => {
     });
 };
 
-const setConversationSeen = (req, res) => {
-  emailUser = req.email;
-  if ( !emailUser ) return res.sendStatus(500);
-  var myEmail = emailUser;
+/* const setConversationSeen = (req, res) => {
+  myEmail = req.email;
+  if ( !myEmail ) return res.sendStatus(500);
+  
   var hisEmail = req.headers["hisemail"];
   
   Conversation.updateOne(
@@ -663,9 +845,9 @@ const setConversationSeen = (req, res) => {
     { $set: { "participants.0.seen": Date.now() } }
         )
           .then(data2 => {
-           /*  if (data2 == null) {
-              return res.sendStatus(401);
-            } */
+           // if (data2 == null) {
+              //return res.sendStatus(401);
+           // } 
 
             console.log("setConversationSeen",  data, data2,);
            // res.send({ status: 200, data, data2, mesaj: "OK setConversationSeen" });
@@ -678,8 +860,8 @@ const setConversationSeen = (req, res) => {
            // res.sendStatus(500);
           });
 
-    /*     */ //return res.sendStatus(401);
-    /*   } */
+    //return res.sendStatus(401);
+    //  } 
 
       // console.log(acceptedData);
      // res.send({ status: 200, data, mesaj: "OK!" });
@@ -691,13 +873,13 @@ const setConversationSeen = (req, res) => {
       //console.log(err);
       res.sendStatus(500);
     });
-};
+}; */
 
 const changeProfile = (req, res) => {
-  emailUser = req.email;
-  if ( !emailUser ) return res.sendStatus(500);
+  myEmail = req.email;
+  if ( !myEmail ) return res.sendStatus(500);
  
-  User.findOne({ email: emailUser , password: req.body.original_pass })
+  User.findOne({ email: myEmail , password: req.body.original_pass })
               .then(user => {
                   user.firstname = req.body.firstname;
                   user.lastname =  req.body.lastname;
@@ -735,6 +917,8 @@ const setConvSeen = (myEmail, hisEmail) => {
          )
           .then(data2 => {
             console.log("setConversationSeen ---->",  data, data2,);
+            loadData(myEmail);
+           // loadData(hisEmail);
           })
           .catch(err => {
             console.log(  "Error in db to update time seen style 1", err );
@@ -760,11 +944,15 @@ const setLastActivity = userEmail => {
     });
 };
 
+
+
+
 module.exports = {
   register,
   login,
   confirmToken,
-  users,
+  //users,
+  stopData,
   sendFriendRequest,
   revokeFriendRequest,
   deniedFriendRequest,
@@ -774,7 +962,6 @@ module.exports = {
   convFragment,
   checkToken,
   createConversation,
-  setConversationSeen,
   addMessage,
   setLastActivity,
   changeProfile
