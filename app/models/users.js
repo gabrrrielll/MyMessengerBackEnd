@@ -13,19 +13,19 @@ var Schema = mongoose.Schema;
 
 //Se creeaza schema utilizatorului cu toate constrangerile necesare
 var UserSchema = new Schema( {
-	username: { type: String, required: true, unique: true},
-	email: { type: String, required: true, unique: true },
-	firstname: { type: String },
-	lastname: { type: String },
+	username: { type: String, required: true, unique: true,  minlength: 3, maxlength: 50},
+	email: { type: String, required: true, unique: true,  minlength: 3, maxlength: 50 },
+	firstname: { type: String ,  minlength: 3, maxlength: 50},
+	lastname: { type: String ,  minlength: 3, maxlength: 50},
 	mail_confirm: { type: Boolean },
-	password: { type: String, required: true , select: false},
-	tel: { type: String},
-	photo: { type: String },
+	password: { type: String, required: true , select: false,  minlength: 1, maxlength: 30},
+	tel: { type: Number,  minlength: 6, maxlength: 15},
+	photo: { type: String ,  minlength: 4, maxlength: 300},
 	friends: { type: Array  },
 	friends_requests: { type: Array  },
 	requests_sent: { type: Array },
 	last_activity: { type: Number},
-	message_fragment: { type: String}
+	color: { type: String}
 } )
 
 //Se adauga schema sub forma de "Colectie" in baza de date

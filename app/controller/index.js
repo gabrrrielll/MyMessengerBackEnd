@@ -53,50 +53,52 @@ const checkToken = (req, res ) => {
       myEmail = undefined;
       return myEmail;
     } else {
+          User.find( { } ) 
+          .then( users => {
+                if( users ){
+                  res.status(200);
+                  res.send( { inform: "Valid token", authorized: true, users, myEmail: payload.email } );
+                        
+                 console.log("ok, find users in checktoken")
+                } 
+                
+            })
       
-      res.send( { inform: "Valid token", authorized: true, myEmail: payload.email } );
+     
       myEmail = payload.email;
       setLastActivity(myEmail);
       convFragment( myEmail  ) 
       loadData( myEmail  )
      
-     // interval = setInterval(() => loadData( myEmail, token ), 3000);
-     
-   
-      return
+      //return
     }
   });
 };
 const loadData=( myEmail )=>{
   
-  //console.log("---------stop load data!", token)
- // console.log("test--stopl", stop)
   if( myEmail  ){
-    //setInterval(   (
-    User.findOne( {  
-      email:  myEmail 
-        } )
-        .then( me => {
-                    if( me ){
-                     // setInterval( () =>  
-                           // io.emit("meAPI" + token, me)
-                           // , 10000  );
-                            console.log("ok, find me")
+  //to do----------if send me?
+        User.findOne( {  
+          email:  myEmail 
+            } )
+            .then( me => {
+                        if( me ){
+                                console.log("ok, find me")
 
-                            User.find( { } ) 
-                              .then( users => {
-                                    if( users ){
-        
-                                            io.emit("usersAPI" + myEmail, users);
-                                            console.log("ok, find users")
-                                    } 
-                                    
-                                })
-                            
-                     }
-         })
+                                User.find( { } ) 
+                                  .then( users => {
+                                        if( users ){
+            
+                                                io.emit("usersAPI" + myEmail, users);
+                                                console.log("ok, find users")
+                                        } 
+                                        
+                                    })
+                                
+                        }
+            })
   }
-   // ) , 1000  );
+ 
 }
 
 app.get("/", (req, res) => {
@@ -115,48 +117,6 @@ app.get("/", (req, res) => {
   });   
 
 
-  
-
-
-/* const usersLive=()=>{
-  User.find( { } ) 
-      .then( users => {
-        if( users ){
-                io.emit("usersAPI", users);
-                console.log("ok, find users")
-                User.findOne( {  
-                    email:  myEmail 
-                } )
-                .then( me => {
-                            if( me ){
-                              // res.send( { users, me} )
-                                io.emit("meAPI", me);
-                                console.log("ok, find me")
-                            } else{
-                                console.log("no me")
-
-                            }
-                    
-                })
-                .catch( err => {
-                            console.log( err );
-                          
-                })
-
-      } 
-
-
-      
-        
-          
-      })
-      .catch( err => {
-              console.log( "Error to DB in live Users" );
-                
-      })
-
-}
-  */
 
 const liveConversation = (myEmail, hisEmail ) =>{   
  /*  console.log( "tokenul este:" , token);
@@ -221,7 +181,7 @@ const register = (req, res) => {
       mail_confirm: false,
       password: req.body.password,
       tel: req.body.tel,
-      photo: req.body.photo,
+      photo: req.body.photo ? req.body.photo : "https://www.w3schools.com/w3css/img_avatar3.png" ,
       friends: [],
       friends_requests: [],
       requests_sent: [],
@@ -304,7 +264,7 @@ const confirmToken = (req, res) => {
       );
     })
     .catch(err => {
-      console.log("Eroare la actualizarea bazei de date");
+      console.log( "DB error" );
       console.log(err);
       res.sendStatus(500);
     });
@@ -312,82 +272,43 @@ const confirmToken = (req, res) => {
 
 const login = (req, res) => {
   if (req.body && req.body.email && req.body.password) {
-    User.findOne({
-      email: req.body.email,
-      password: req.body.password,
-      mail_confirm: true
-    }).then(result => {
-      if (result == null) {
-        res.status(401).json({ inform: "Wrong combination!" });
-      } else {
-        var TOKEN = JWT.sign(
-          {
-            email: req.body.email,
-            exp: Math.floor(Date.now() / 1000) + CONFIG.JWT_EXPIRE_TIME
-          },
-          CONFIG.JWT_SECRET_KEY
-        );
-        setLastActivity( req.body.email );
-        res.status(200).json({ token: TOKEN });
-      }
-    });
+        User.findOne({
+          email: req.body.email,
+          password: req.body.password,
+          //mail_confirm: true
+        }).then(result => {
+              if (result == null) {
+                res.status(401).json({ inform: "Wrong combination!" });
+              } else {
+                if ( result.mail_confirm === false ){
+                  res.json({ inform: "You don't have mail confirmation! Please folow the link received in your mail after registration." , result });
+                } else {
+                    var TOKEN = JWT.sign(
+                          {
+                            email: req.body.email,
+                            exp: Math.floor(Date.now() / 1000) + CONFIG.JWT_EXPIRE_TIME
+                          },
+                          CONFIG.JWT_SECRET_KEY
+                        );
+                        setLastActivity( req.body.email );
+                        convFragment( req.body.email  ) 
+                        loadData( req.body.email  ) 
+                        res.status(200).json({ token: TOKEN, myEmail: req.body.email, inform: "Login successfully!" }); 
+                        }
+               
+             
+              }
+        });
   } else {
     res.status(403).json({ inform: "Please provide all data!" });
   }
 };
 
-/* const users2 = (req, res) => {
-  console.log("test users2")
-  res.send({status: 200, message: "oe5g4gk"})
-}
-const users = (req, res) => {
-  // checkToken(req, res);
- // if (!myEmail) return; 
-  myEmail = req.email;
- 
-  if ( !myEmail ) return res.sendStatus(500);
-  //usersLive(myEmail);
-            User.find( {  
-                    //  "email": { $nin:  myEmail  }
-                } ) 
-                .then( users => {
-                            if( users ){
-                                User.findOne( {  
-                                    email: myEmail 
-                                } )
-                                .then( me => {
-                                            if( me ){
-                                                res.send( { users, me} )
-
-                                            } else{
-                                                res.send( {useri: "no users"} )
-
-                                            }
-                                    
-                                })
-                                .catch( err => {
-                                            //console.log( err );
-                                            res.sendStatus( 500 );
-                                })
-
-                            } else{
-                                res.send( {useri: "no users"} )
-
-                            }
-                    
-                })
-                .catch( err => {
-                        // console.log( err );
-                            res.sendStatus( 500 );
-                })
-
-
-} */
 
 const sendFriendRequest = (req, res) => {
   myEmail = req.email;
   if ( !myEmail ) return res.sendStatus(500);
- // console.log(myEmail);
+  console.log("sendFriendRequest", myEmail);
   //verificam in lista noastra  daca exista o cerere trimisa deja
   User.findOne({ email: myEmail })
         .then(sent => {
@@ -420,14 +341,14 @@ const sendFriendRequest = (req, res) => {
                                     }
                             })
                             .catch( err => {
-                                console.log( "Eroare la interogarea bazei de date" )
+                              console.log( "DB error" );
                                 console.log( err );
                                 res.sendStatus( 500 );
                             });   
                     }
             })
             .catch( err => {
-                console.log( "Eroare la interogarea bazei de date" )
+              console.log( "DB error" );
                 console.log( err );
                 res.sendStatus( 500 );
             });
@@ -468,14 +389,14 @@ const revokeFriendRequest = (req, res) => {
                                       }
                               })
                               .catch( err => {
-                                  console.log( "Eroare la interogarea bazei de date" )
+                                console.log( "DB error" );
                                   console.log( err );
                                   res.sendStatus( 500 );
                               });   
                       }
               })
               .catch( err => {
-                  console.log( "Eroare la interogarea bazei de date" )
+                console.log( "DB error" );
                   console.log( err );
                   res.sendStatus( 500 );
               });
@@ -515,14 +436,14 @@ const deniedFriendRequest = (req, res) => {
                                       }
                               })
                               .catch( err => {
-                                  console.log( "Eroare la interogarea bazei de date" )
+                                console.log( "DB error" );
                                   console.log( err );
                                   res.sendStatus( 500 );
                               });   
                       }
               })
               .catch( err => {
-                  console.log( "Eroare la interogarea bazei de date" )
+                console.log( "DB error" );
                   console.log( err );
                   res.sendStatus( 500 );
               });
@@ -568,14 +489,14 @@ const acceptFriendRequest = (req, res) => {
                                       }
                               })
                               .catch( err => {
-                                  console.log( "Eroare la interogarea bazei de date" )
+                                console.log( "DB error" );
                                   console.log( err );
                                   res.sendStatus( 500 );
                               });   
                       }
               })
               .catch( err => {
-                  console.log( "Eroare la interogarea bazei de date" )
+                console.log( "DB error" );
                   console.log( err );
                   res.sendStatus( 500 );
               });
@@ -614,14 +535,14 @@ const removeFriend = (req, res) => {
                                       }
                               })
                               .catch( err => {
-                                  console.log( "Eroare la interogarea bazei de date" )
+                                console.log( "DB error" );
                                   console.log( err );
                                   res.sendStatus( 500 );
                               });   
                       }
               })
               .catch( err => {
-                  console.log( "Eroare la interogarea bazei de date" )
+                console.log( "DB error" );
                   console.log( err );
                   res.sendStatus( 500 );
               });
@@ -672,7 +593,7 @@ const createConversation = (myEmail, hisEmail, message) => {
       //res.send( { status: 200, data, mesages: "OK!"  })
     })
     .catch(err => {
-      console.log("Error in DB");
+      console.log( "DB error" );
       // res.sendStatus(500);
     });
 };
@@ -683,6 +604,9 @@ const addMessage = (req, res) => {
 
   var hisEmail = req.body.hisemail;
   var message = req.body.message;
+  if ( message.length > 1000) {
+    return res.sendStatus(409);
+  }
   //console.log( "xxxxxxxxxxxxxx" , hisEmail, message )
   
   Conversation.findOne({
@@ -735,21 +659,19 @@ const addMessage = (req, res) => {
            
           })
           .catch(err => {
-            console.log(
-              "Eroare la interogarea bazei de date in vederea adaugarii unei cereri"
-            );
+            console.log( "DB error" );
             //console.log(err);
             res.sendStatus(500);
           });
       }
     })
     .catch(err => {
-      console.log("Eroare la interogarea bazei de date");
+      console.log( "DB error" );
       console.log(err);
       res.sendStatus(500);
     });
 };
-
+var contor = 0;
 const conversation = (req, res) => {
 
   myEmail = req.email;
@@ -758,8 +680,17 @@ const conversation = (req, res) => {
   
   var hisEmail = req.headers["hisemail"];
  // console.log("********conversation-io--->")
+             setConvSeen (myEmail, hisEmail);
+              liveConversation(myEmail, hisEmail);
+              convFragment( myEmail)
+              convFragment( hisEmail)
+              loadData(myEmail);
+              loadData(hisEmail);
 
-  liveConversation(myEmail, hisEmail );
+/*  setConvSeen (myEmail, hisEmail);
+liveConversation(myEmail, hisEmail );
+loadData( myEmail  ) */
+
   //interval2 = setInterval(() => liveConversation(myEmail, hisEmail, token), 1000);
    Conversation.findOne(
     // ok varianta initiala
@@ -776,19 +707,25 @@ const conversation = (req, res) => {
     .sort({ time: -1 })
  
     .then((data, participants) => {
-      if (data == null) {
-        //console.log( "null->data: ", data)
-        return res.send({ status: 200, data, mesages: "No conversation!" });
-      }
-      setConvSeen (myEmail, hisEmail);
-      
-      res.send({ status: 200, data, participants, mesages: "OK!" })
+          if (data == null) {
+            //console.log( "null->data: ", data)
+            return res.send({ status: 200, data, mesages: "No conversation!" });
+          }
+          console.log( "conversation-data: ", data.messages.length)
+          if ( data.messages.length > 3 ){
+           contor= contor-3;
+            var newData = data.messages.slice( contor)
+            console.log( "newData", newData, contor)
+          }
+         
+          
+          res.send({ status: 200, data, participants, mesages: "OK!" })
          
       
     })
     
     .catch(err => {
-      console.log("Error in DB");
+      console.log( "DB error" );
       res.sendStatus(500);
     }); 
 };
@@ -805,95 +742,40 @@ const convFragment = ( myEmail ) => {
   )
   //  .sort({ time: -1 })
     .then((data) => {
-                if (data !== null) {
-                       // console.log( "null->data: ", data)
-                       // return res.send({ status: 200, data, mesages: "No conversation!" });
-                }
+            
                  var x =[] ;
                  data.map( mes =>  {
                  return  x.push( { 
-                  message: mes.messages[  mes.messages.length - 1 ],
-                  seenTime: mes.participants.find( part => part.email === myEmail ).seen,
-                  userEmail: mes.participants.find( part => part.email !== myEmail ).email
-                 })
+                                          message: mes.messages[mes.messages.length - 1] ,
+                                          seenTime: mes.participants.find( part => part.email !== myEmail ).seen,
+                                          userEmail: mes.participants.find( part => part.email !== myEmail ).email
+                                        })
                 
               })
               io.emit( "fragmentAPI"+myEmail, x)
              
     })
     .catch(err => {
-      console.log("Error in DB xx");
+      console.log( "DB error" );
       res.sendStatus(500);
     });
 };
 
-/* const setConversationSeen = (req, res) => {
-  myEmail = req.email;
-  if ( !myEmail ) return res.sendStatus(500);
-  
-  var hisEmail = req.headers["hisemail"];
-  
-  Conversation.updateOne(
-    { "participants.0.email": hisEmail, "participants.1.email":  myEmail},
-    { $set: { "participants.1.seen": Date.now() } }
-   
-  )
-    .then(data => {
-     // if (data !== null) {
-        Conversation.updateOne(
-          { "participants.0.email": myEmail, "participants.1.email": hisEmail },
-    { $set: { "participants.0.seen": Date.now() } }
-        )
-          .then(data2 => {
-           // if (data2 == null) {
-              //return res.sendStatus(401);
-           // } 
 
-            console.log("setConversationSeen",  data, data2,);
-           // res.send({ status: 200, data, data2, mesaj: "OK setConversationSeen" });
-          })
-          .catch(err => {
-            console.log(
-              "Eroare la interogarea bazei de date in vederea adaugarii unei cereri 1", err
-            );
-            //console.log(err);
-           // res.sendStatus(500);
-          });
-
-    //return res.sendStatus(401);
-    //  } 
-
-      // console.log(acceptedData);
-     // res.send({ status: 200, data, mesaj: "OK!" });
-    })
-    .catch(err => {
-      console.log(
-        "Eroare la interogarea bazei de date in vederea adaugarii unei cereri 2", err
-      );
-      //console.log(err);
-      res.sendStatus(500);
-    });
-}; */
-
-const changeProfile = (req, res) => {
+const setColor = (req, res) => {
   myEmail = req.email;
   if ( !myEmail ) return res.sendStatus(500);
  
-  User.findOne({ email: myEmail , password: req.body.original_pass })
+  User.findOne({ email: myEmail  })
               .then(user => {
-                  user.firstname = req.body.firstname;
-                  user.lastname =  req.body.lastname;
-                  if (req.body.new_pass){
-                    user.password = req.body.new_pass
-                  }
-                  user.tel = req.body.tel;
-                  user.photo = req.body.photo;
-                  console.log("ccccccccccccc", req.body)
-                  user.save()
+                  user.color = req.body.color
+                  console.log("Update succesfully!", req.body)
+                  user.save();
+                  loadData(myEmail);
                   res.send({ status: 200, inform: "Update succesfully!" });
             })
             .catch( err => {
-                console.log( "Eroare la interogarea bazei de date" )
+              console.log( "DB error" );
                 console.log( err );
                 res.sendStatus( 500 );
             });
@@ -901,32 +783,88 @@ const changeProfile = (req, res) => {
  
 };
 
+const changeProfile = (req, res) => {
+  myEmail = req.email;
+  if ( !myEmail ) return res.sendStatus(500);
+ if(req.body.original_pass){
+      User.findOne({ email: myEmail , password: req.body.original_pass })
+      .then(user => {
+        user.firstname = req.body.firstname;
+        user.lastname =  req.body.lastname;
+        if (req.body.new_pass){
+          user.password = req.body.new_pass
+        }  else if( !req.body.new_pass  ){
+          res.send({  inform: "You have to provide new password to change it!" });
+         }
+        user.tel = req.body.tel;
+        user.photo = req.body.photo;
+        console.log("Update succesfully", req.body)
+        user.save()
+        loadData(myEmail);
+        res.send({ status: 200, inform: "Update succesfully!" });
+    })
+    .catch( err => {
+      console.log( "DB error" );
+      console.log( err );
+      res.sendStatus( 500 );
+    });
+ }
+  else if( req.body.new_pass && !req.body.original_pass ){
+  res.send({  inform: "You have to provide old password to change it!" });
+ }
+ 
+  else if( ! req.body.new_pass && !req.body.original_pass ){
+        User.findOne({ email: myEmail })
+        .then(user => {
+          user.firstname = req.body.firstname;
+          user.lastname =  req.body.lastname;
+        
+          user.tel = req.body.tel;
+          user.photo = req.body.photo;
+          console.log("Update succesfully", req.body)
+          user.save();
+          loadData(myEmail);
+          res.send({ status: 200, inform: "Update succesfully!" });
+      })
+      .catch( err => {
+        console.log( "DB error" );
+        console.log( err );
+        res.sendStatus( 500 );
+      });
+ }
+  
+             
+
+ 
+};
+
 const setConvSeen = (myEmail, hisEmail) => {
+  //console.log("setConversationSeen ---->");
 //this function runs only from back so don't need token verification
   
   Conversation.updateOne(
     { "participants.0.email": hisEmail, "participants.1.email":  myEmail},
-    { $set: { "participants.1.seen": Date.now() } }
+    { $set: { "participants.1.seen": Date.now(), "participants.1.counter":  Date.now() } }
    
   )
     .then(data => {
      
         Conversation.updateOne(
             { "participants.0.email": myEmail, "participants.1.email": hisEmail },
-            { $set: { "participants.0.seen": Date.now() } }
+            { $set: { "participants.0.seen": Date.now(), "participants.0.counter":  Date.now()  } }
          )
           .then(data2 => {
-            console.log("setConversationSeen ---->",  data, data2,);
-            loadData(myEmail);
-           // loadData(hisEmail);
+            
+            //loadData(myEmail);
+            liveConversation(myEmail, hisEmail);
           })
           .catch(err => {
-            console.log(  "Error in db to update time seen style 1", err );
+            console.log( "DB error" );
           });
 
     })
     .catch(err => {
-      console.log(  "Error in db to update time seen style 2", err );
+      console.log( "DB error" );
     });
 };
 
@@ -936,11 +874,11 @@ const setLastActivity = userEmail => {
       if (data == null) {
         console.log("Empty data", data);
       }
-
-      console.log("Update last activity: ", data);
+      loadData(userEmail);
+      //console.log("Update last activity: ", data);
     })
     .catch(err => {
-      console.log("Error in DB", err);
+      console.log( "DB error" );
     });
 };
 
@@ -964,6 +902,7 @@ module.exports = {
   createConversation,
   addMessage,
   setLastActivity,
-  changeProfile
+  changeProfile,
+  setColor
   
 };
